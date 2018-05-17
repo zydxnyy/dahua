@@ -3,7 +3,7 @@ using namespace std;
 
 //#define proga_fg
 
-const double SIGMA = 2;
+const double SIGMA = 0.8;
 const int WIN_SIZE = 3;
 const double pi = 3.1415926535;
 const int N = 20;
@@ -13,7 +13,7 @@ int norm_R = 20;
 int R = 10;	//
 const double RATE = 1/16;
 const double PROGA_RATE = 1/3;
-const int BLINK_FRAME = 10;
+const int BLINK_FRAME = 15;
 
 int swidth, sheight;
 
@@ -26,12 +26,17 @@ int* D;
 
 double gauss_win[3][3];
 
+//二值形态格式刷 
+const bool corrode_flush[3][3] = { {0,1,0}, {1,1,1}, {0,1,0} };
+
 int cx1, cy1, cx2, cy2;
 int width, height;
 int row, col;
 int xx1, yy1, xx2, yy2;
 int threshold, sensity;
 int cell_width, cell_height;
+
+float cell_dect;
 
 extern string resultPath;
 
@@ -65,6 +70,9 @@ void set_detection_region(int _x1, int _y1, int _x2, int _y2) {
 void set_threshold_sensity(int t, int s) {
 	threshold = t;
 	sensity = s;
+	cell_dect = -0.07*(float)s+0.8;
+	
+	printf("cell_dect = %f\n", cell_dect);
 }
 
 void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) {
@@ -87,20 +95,24 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 		first_set = false;
 	}
 	
+	gauss_filter(gauss_win, yuvData);
 	if (count++ < BLINK_FRAME) {
 		R = R_RATE * norm_R;
-		predict(yuvData, resultMatrix, 1);
+		predict(yuvData, resultMatrix, 2);
 	}
 	else {
 		R = norm_R;
 		predict(yuvData, resultMatrix, 0);
 	}
-	gauss_filter(gauss_win, yuvData);
-	gauss_filter(gauss_win, yuvData);
+	
+	corrode(yuvData); 
+	swell(yuvData);
+	
+	check(yuvData, resultMatrix, alarmResult); 
 	
 	write_yuv(yuvData, resultPath);
 	
-//	printf("%dth frame\n", count++); 
+//	printf("%dth frame\n", count); 
 }
 
 //产生高斯离散核函数 
@@ -200,23 +212,19 @@ void set_background(BYTE* yuvData) {
 }
 
 void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
-	if (bg_flush) cout << "flush" << endl;
 	int bg_cnt;
 	BYTE min_d;
 	int choose, chx, chy;
 	float min_dd;
-	//cell_count单元格里面多少个像素点是前景，block_count检测区域有多少个单元格判为动态 
-	int cell_count = 0, block_count = 0;
 	//遍历每一个单元格 
 	for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
-		
-			cell_count = 0;
 		
 			//遍历单元格里面的每一个像素 
 			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
 				
 				bg_cnt = 0;
 //				min_d = 255;
+				//遍历每一个背景样本集合 
 				for (int m=0;m<N;++m) {
 					//判断背景样本重叠数 
 					if (dist(yuvData[conv(i, j)], bg_set[convs(i-yy1, j-xx1)][m]) < R) if (++bg_cnt > D_MIN) break;
@@ -245,18 +253,17 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 								case 7: chy = i+1, chx = j+1;break;
 							}
 							if (ch(chy) && cw(chx)) {
-								bg_set[convs(chy-yy1, chx-xx1)][random(N)] = yuvData[conv(chy, chx)];
+								bg_set[convs(chy-yy1, chx-xx1)][random(N)] = yuvData[conv(i, j)];
 							}
 						}
 						
 					}
-					yuvData[conv(i, j)] = 0;
+					yuvData[conv(i, j)] = 1;
 		//			T[conv(i, j)] += 1.0 / min_dd / 2.0;
 				}
 				//前景 
 				else {
-					cell_count += 1;
-					yuvData[conv(i, j)] = 255;
+					yuvData[conv(i, j)] = 254;
 		//			T[conv(i, j)] -= 1.0 / min_dd;
 					//以一定概率传播前景，填补空白
 #ifdef proga_fg					
@@ -279,6 +286,8 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 #endif
 					
 				}
+				
+		
 		//		//更新阈值，效果不好 
 		//		if (RE[conv(i, j)] > Rs*min_dd) {
 		//			if (RE[conv(i, j)] > 20) RE[conv(i, j)] *= 0.95;
@@ -308,8 +317,81 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 					
 			}
 			
-			
 	}
 	
 }
 
+//二值形态腐蚀 
+void corrode(BYTE* yuvData) {
+	
+	for (int i=yy1;i<yy2;++i) for (int j=xx1;j<xx2;++j) {
+		
+		for (int k=i-1;k<=i+1;++k) for (int l=j-1;l<=j+1;++l) {
+			if (ch(k) && cw(l)) {
+				if (corrode_flush[k-i+1][l-j+1] && (yuvData[conv(k, l)]==1)) {
+					yuvData[conv(i, j)] = 0;
+					goto out;
+				}
+			}
+		}
+		out:;
+	}
+	
+}
+
+//二值形态膨胀 
+void swell(BYTE* yuvData) {
+	
+	for (int i=yy1;i<yy2;++i) for (int j=xx1;j<xx2;++j) {
+		
+		for (int k=i-1;k<=i+1;++k) for (int l=j-1;l<=j+1;++l) {
+			if (ch(k) && cw(l)) {
+				if (corrode_flush[k-i+1][l-j+1] && (yuvData[conv(k, l)]==254)) {
+					yuvData[conv(i, j)] = 255;
+					goto out;
+				}
+			}
+		}
+		out:;
+	}
+	
+}
+
+//检查当前帧是否满足动检条件 
+void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarm) {
+	//cell_count单元格里面多少个像素点是前景，block_count检测区域有多少个单元格判为动态 
+	int cell_count = 0, block_count = 0;
+
+	//遍历每一个单元格 
+	for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
+		
+		cell_count = 0;
+		
+		//遍历单元格里面的每一个像素 
+		for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
+			if (yuvData[conv(i, j)] == 255) cell_count += 1;
+		}
+		
+//		if (cell_count != 0) printf("cell_count=%d\n", cell_count);
+
+		if (cell_count >= cell_height*cell_width*cell_dect) {
+			block_count += 1;
+		}
+	}
+	
+	printf("block_cnt=%d<-->%d\n", block_count, (cx2-cx1)*(cy2-cy1));
+	
+	if (block_count >= (cx2-cx1)*(cy2-cy1)*threshold/100) {
+		printf("*********alarm at frame %d*********\n", count);
+				//遍历每一个单元格 
+		for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
+		//遍历单元格里面的每一个像素 
+			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
+				if (yuvData[conv(i, j)] == 255) yuvData[conv(i, j)] = 0;
+				else yuvData[conv(i, j)] = 255;
+			}
+		}
+	}
+	
+
+}

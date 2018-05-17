@@ -7,10 +7,10 @@ extern int height, width;
 
 const char* BASEDIR = "../";
 
-string file_name = "2";
+string file_name = "晴+昼+马路1_1280x720";
 string colorPath = BASEDIR + file_name + ".yuv";
 string paramPath = BASEDIR + file_name + ".txt";
-string resultPath = BASEDIR + string("result") + file_name + ".yuv";
+string resultPath = BASEDIR + string("result_") + file_name + ".yuv";
 
 int main(int argcnt, char* arg[])
 {
@@ -40,7 +40,7 @@ int main(int argcnt, char* arg[])
 	//获取缓存空间
 	
 	FILE *f1;
-	remove("result.yuv");
+	remove(resultPath.c_str());
 	//打开要读取的文件
 	if ((f1 = fopen(colorPath.c_str(), "rb")) == NULL)
 	{

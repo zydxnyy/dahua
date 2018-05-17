@@ -34,3 +34,8 @@ void set_background(BYTE* yuvData);
 
 void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush);
 
+void corrode(BYTE* yuvData);
+
+void swell(BYTE* yuvData);
+
+void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarm); 
