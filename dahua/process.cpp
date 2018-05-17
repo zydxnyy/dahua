@@ -33,6 +33,8 @@ int xx1, yy1, xx2, yy2;
 int threshold, sensity;
 int cell_width, cell_height;
 
+extern string resultPath;
+
 void set_resolution(int _width,int _height) {
 	width = _width;
 	height = _height;
@@ -95,9 +97,8 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 	}
 	gauss_filter(gauss_win, yuvData);
 	gauss_filter(gauss_win, yuvData);
-	char name[] = "result.yuv";
 	
-	write_yuv(yuvData, name);
+	write_yuv(yuvData, resultPath);
 	
 //	printf("%dth frame\n", count++); 
 }
@@ -150,9 +151,9 @@ void gauss_filter(double win[3][3], BYTE* yuvData) {
 	}
 }
 
-void write_yuv(BYTE* yuvData, char* name) {
+void write_yuv(BYTE* yuvData, string name) {
 	FILE* wfile;
-	if ((wfile = fopen(name, "ab")) == NULL) { 
+	if ((wfile = fopen(name.c_str(), "ab")) == NULL) { 
 		exit(-1);
 	}
 	fwrite(yuvData, sizeof(char),sizeof(BYTE)*width*height,wfile);

@@ -28,7 +28,7 @@ void gauss_filter(double win[3][3], BYTE* yuvData);
 
 void generateGaussianTemplate(double win[][3], int ksize, double sigma);
 
-void write_yuv(BYTE* yuvData, char* name);
+void write_yuv(BYTE* yuvData, string name);
 
 void set_background(BYTE* yuvData);
 

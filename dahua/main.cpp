@@ -1,23 +1,16 @@
 #include "process.h"
 using namespace std;
 
-//int width = 0, height = 0;
-//int row = 0, col = 0;
-//int xx1 = 0, yy1 = 0, xx2 = 0, yy2 = 0;
-//int threshold = 0, sensity = 0;
-//int cell_width = 0, cell_height = 0;
 int TotalFrm = 250;
 
 extern int height, width; 
 
-//3
-//set_resolution(1920, 1080);
-//set_detection_region(600, 400, 1000, 800);
+const char* BASEDIR = "../";
 
-//1
-//set_resolution(1280, 720);
-//set_cell_split(72, 128);
-//set_detection_region(0, 200, 500, 600);
+string file_name = "2";
+string colorPath = BASEDIR + file_name + ".yuv";
+string paramPath = BASEDIR + file_name + ".txt";
+string resultPath = BASEDIR + "result" + file_name + ".yuv";
 
 int main(int argcnt, char* arg[])
 {
@@ -25,12 +18,12 @@ int main(int argcnt, char* arg[])
 	bool alarmResult;
 	FILE *InputFile;
 	
-	string file_name = "2";
-	string colorPath = file_name + ".yuv";
-	string paramPath = file_name + ".txt";
-	string resultPath = file_name + ".yuv";
-	
 	ifstream ins(paramPath.c_str());
+	
+	if (!ins) {
+		printf("Please add the param file!\n");
+		exit(-1);
+	} 
 	
 	int w, h, px1, py1, px2, py2, r, c, s, t;
 	ins >> w >> h >> px1 >> py1 >> px2 >> py2 >> r >> c >> t >> s;
