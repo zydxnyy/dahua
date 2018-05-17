@@ -10,7 +10,7 @@ const char* BASEDIR = "../";
 string file_name = "2";
 string colorPath = BASEDIR + file_name + ".yuv";
 string paramPath = BASEDIR + file_name + ".txt";
-string resultPath = BASEDIR + "result" + file_name + ".yuv";
+string resultPath = BASEDIR + string("result") + file_name + ".yuv";
 
 int main(int argcnt, char* arg[])
 {
