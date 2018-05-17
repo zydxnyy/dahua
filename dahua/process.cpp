@@ -38,7 +38,7 @@ int cell_width, cell_height;
 
 float cell_dect;
 
-extern string resultPath;
+//extern string resultPath;
 
 void set_resolution(int _width,int _height) {
 	width = _width;
@@ -84,7 +84,7 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 		
 		swidth = xx2-xx1;
 		sheight = yy2-yy1;
-		printf("swidth = %d sheight = %d\n", swidth, sheight);
+//		printf("swidth = %d sheight = %d\n", swidth, sheight);
 		bg_set = new BYTE* [swidth*sheight];
 		for (int i=0;i<swidth*sheight;++i) bg_set[i] = new BYTE [N];
 //		T = new float [width*height];
@@ -104,13 +104,12 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 		R = norm_R;
 		predict(yuvData, resultMatrix, 0);
 	}
-	
-	corrode(yuvData); 
 	swell(yuvData);
+	corrode(yuvData); 
 	
 	check(yuvData, resultMatrix, alarmResult); 
 	
-	write_yuv(yuvData, resultPath);
+//	write_yuv(yuvData, resultPath);
 	
 //	printf("%dth frame\n", count); 
 }
@@ -376,22 +375,35 @@ void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarm) {
 
 		if (cell_count >= cell_height*cell_width*cell_dect) {
 			block_count += 1;
+			resultMatrix[p-cy1][q-cx1] = 1;
+		}
+		else {
+			resultMatrix[p-cy1][q-cx1] = 0;
 		}
 	}
 	
-	printf("block_cnt=%d<-->%d\n", block_count, (cx2-cx1)*(cy2-cy1));
+//	printf("block_cnt=%d<-->%d\n", block_count, (cx2-cx1)*(cy2-cy1));
 	
+	//如果大于阈值，检测当前帧为动检帧 
 	if (block_count >= (cx2-cx1)*(cy2-cy1)*threshold/100) {
-		printf("*********alarm at frame %d*********\n", count);
-				//遍历每一个单元格 
-		for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
-		//遍历单元格里面的每一个像素 
-			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
-				if (yuvData[conv(i, j)] == 255) yuvData[conv(i, j)] = 0;
-				else yuvData[conv(i, j)] = 255;
-			}
-		}
-	}
-	
+//		printf("*********alarm at frame %d*********\n", count);
+		alarm = true;
+		
+//				//遍历每一个单元格 
+//		for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
+//		//遍历单元格里面的每一个像素 
+//			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
+//				if (yuvData[conv(i, j)] == 255) yuvData[conv(i, j)] = 0;
+//				else yuvData[conv(i, j)] = 255;
+//			}
+//		}
 
+	}
+	else {
+		alarm = false;
+	} 
+	//如果变化过大，表明光线变化剧烈，重新建模 
+	if (block_count >= (cx2-cx1)*(cy2-cy1)*80/100) {
+		set_background(yuvData);
+	}
 }
