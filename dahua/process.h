@@ -1,9 +1,10 @@
-#include<iostream>
-#include<cstdlib>
-#include<cstring>
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
 #include <cmath>
 #include <time.h>
 #include <fstream>
+#include <string.h>
 using namespace std;
 typedef unsigned char BYTE;
 #define conv(r, c) (r*width+c)

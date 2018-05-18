@@ -2,26 +2,30 @@
 using namespace std;
 
 //#define proga_fg
+//#define bg_flush
 
 const double SIGMA = 0.8;
 const int WIN_SIZE = 3;
 const double pi = 3.1415926535;
-const int N = 20;
+const int N = 15;
 const int D_MIN = 2;
 const float R_RATE = 1.5f;
 int norm_R = 20;
 int R = 10;	//
 const double RATE = 1/16;
 const double PROGA_RATE = 1/3;
-const int BLINK_FRAME = 15;
+const int BLINK_FRAME = 20;
 
 int swidth, sheight;
 
 static int count = 1;
+static bool first_set = true;
 
 BYTE** bg_set;
 float* T;
-int* D;
+BYTE* D;
+BYTE* yuvBackup;
+bool* is_fg;
 //BYTE* RE[MY_SIZE];
 
 double gauss_win[3][3];
@@ -38,7 +42,7 @@ int cell_width, cell_height;
 
 float cell_dect;
 
-//extern string resultPath;
+extern string resultPath;
 
 void set_resolution(int _width,int _height) {
 	width = _width;
@@ -79,26 +83,29 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 //	for (int i=0;i<width*height;++i) cout << (int)yuvData[i] << " ";
 //	cout << endl;
 //	system("pause");
-	static bool first_set = true;
 	if (first_set) {
-		
 		swidth = xx2-xx1;
 		sheight = yy2-yy1;
 //		printf("swidth = %d sheight = %d\n", swidth, sheight);
 		bg_set = new BYTE* [swidth*sheight];
 		for (int i=0;i<swidth*sheight;++i) bg_set[i] = new BYTE [N];
 //		T = new float [width*height];
-//		D = new int [width*height];
-		set_background(yuvData);
+		D = new BYTE [swidth*sheight];
+		memset(D, 255, sizeof(D));
+		yuvBackup = new BYTE [swidth*sheight];
+		memset(D, 0, sizeof(yuvBackup));
 		//生成高斯离散核函数
 		generateGaussianTemplate(gauss_win, WIN_SIZE, SIGMA);
+		set_background(yuvData);
 		first_set = false;
 	}
 	
+	printf("%dth frame\n", count); 
 	gauss_filter(gauss_win, yuvData);
+	//初始帧不稳定，增大判为背景的概率 
 	if (count++ < BLINK_FRAME) {
 		R = R_RATE * norm_R;
-		predict(yuvData, resultMatrix, 2);
+		predict(yuvData, resultMatrix, 0);
 	}
 	else {
 		R = norm_R;
@@ -109,9 +116,8 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 	
 	check(yuvData, resultMatrix, alarmResult); 
 	
-//	write_yuv(yuvData, resultPath);
+	write_yuv(yuvData, resultPath);
 	
-//	printf("%dth frame\n", count); 
 }
 
 //产生高斯离散核函数 
@@ -175,27 +181,30 @@ void set_background(BYTE* yuvData) {
 	int choose, chx, chy;
 	//遍历所有的像素，为每一个像素点设置背景颜色集合 
 	for (int i=yy1;i<yy2;++i) for (int j=xx1;j<xx2;++j) {
-		//设置背景集合 
-		for (int m=0;m<N;++m) {
-			choose = random(8);
-			switch(choose) {
-				case 0: chy = i-1, chx = j-1;break;
-				case 1: chy = i-1, chx = j;break;
-				case 2: chy = i-1, chx = j+1;break;
-				case 3: chy = i, chx = j-1;break;
-				case 4: chy = i, chx = j+1;break;
-				case 5: chy = i+1, chx = j-1;break;
-				case 6: chy = i+1, chx = j;break;
-				case 7: chy = i+1, chx = j+1;break;
+		//设置背景集合（如果是第一次设置，或者图像稳定） 
+		if (first_set || abs(yuvData[conv(i, j)]-yuvBackup[convs(i-yy1, j-xx1)])<D[convs(i-yy1, j-xx1)]+10 ) {
+			if (!first_set) D[convs(i-yy1, j-xx1)] = abs(yuvData[conv(i, j)]-yuvBackup[convs(i-yy1, j-xx1)]);
+			for (int m=0;m<N;++m) {
+				choose = random(8);
+				switch(choose) {
+					case 0: chy = i-1, chx = j-1;break;
+					case 1: chy = i-1, chx = j;break;
+					case 2: chy = i-1, chx = j+1;break;
+					case 3: chy = i, chx = j-1;break;
+					case 4: chy = i, chx = j+1;break;
+					case 5: chy = i+1, chx = j-1;break;
+					case 6: chy = i+1, chx = j;break;
+					case 7: chy = i+1, chx = j+1;break;
+				}
+				if (ch(chy) && cw(chx)) {
+					bg_set[convs(i-yy1, j-xx1)][m] = yuvData[conv(chy, chx)];
+				}
+				else {
+					--m;
+				}
 			}
-			if (ch(chy) && cw(chx)) {
-				bg_set[convs(i-yy1, j-xx1)][m] = yuvData[conv(chy, chx)];
-			}
-			else {
-				--m;
-			}
+			
 		}
-		
 		//设置变化率
 //		T[conv(i, j)] = RATE;
 		//设置阈值 
@@ -220,6 +229,8 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 		
 			//遍历单元格里面的每一个像素 
 			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
+				//记录这一帧的像素，供差分使用 
+				yuvBackup[convs(i-yy1, j-xx1)] = yuvData[conv(i, j)];
 				
 				bg_cnt = 0;
 //				min_d = 255;
@@ -286,7 +297,6 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 					
 				}
 				
-		
 		//		//更新阈值，效果不好 
 		//		if (RE[conv(i, j)] > Rs*min_dd) {
 		//			if (RE[conv(i, j)] > 20) RE[conv(i, j)] *= 0.95;
@@ -296,6 +306,7 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 		//		}
 				
 				
+#ifdef bg_flush
 				//刷新背景 
 				for (int bg=0;bg<bg_flush;++bg) {
 					choose = random(8);
@@ -313,6 +324,8 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 						bg_set[convs(chy-yy1, chx-xx1)][random(N)] = yuvData[conv(chy, chx)];
 					}
 				}
+#endif
+				
 					
 			}
 			
@@ -329,11 +342,11 @@ void corrode(BYTE* yuvData) {
 			if (ch(k) && cw(l)) {
 				if (corrode_flush[k-i+1][l-j+1] && (yuvData[conv(k, l)]==1)) {
 					yuvData[conv(i, j)] = 0;
-					goto out;
+					goto out1;
 				}
 			}
 		}
-		out:;
+		out1:;
 	}
 	
 }
@@ -347,11 +360,11 @@ void swell(BYTE* yuvData) {
 			if (ch(k) && cw(l)) {
 				if (corrode_flush[k-i+1][l-j+1] && (yuvData[conv(k, l)]==254)) {
 					yuvData[conv(i, j)] = 255;
-					goto out;
+					goto out2;
 				}
 			}
 		}
-		out:;
+		out2:;
 	}
 	
 }
@@ -386,24 +399,20 @@ void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarm) {
 	
 	//如果大于阈值，检测当前帧为动检帧 
 	if (block_count >= (cx2-cx1)*(cy2-cy1)*threshold/100) {
-//		printf("*********alarm at frame %d*********\n", count);
 		alarm = true;
 		
-//				//遍历每一个单元格 
-//		for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
-//		//遍历单元格里面的每一个像素 
-//			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
-//				if (yuvData[conv(i, j)] == 255) yuvData[conv(i, j)] = 0;
-//				else yuvData[conv(i, j)] = 255;
-//			}
-//		}
+		printf("*********alarm at frame %d*********\n", count);
+				//遍历每一个单元格 
+		for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
+		//遍历单元格里面的每一个像素 
+			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
+				if (yuvData[conv(i, j)] == 255) yuvData[conv(i, j)] = 0;
+				else yuvData[conv(i, j)] = 255;
+			}
+		}
 
 	}
 	else {
 		alarm = false;
-	} 
-	//如果变化过大，表明光线变化剧烈，重新建模 
-	if (block_count >= (cx2-cx1)*(cy2-cy1)*80/100) {
-		set_background(yuvData);
 	}
 }
