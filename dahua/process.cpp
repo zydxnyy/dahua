@@ -2,33 +2,32 @@
 using namespace std;
 
 //#define proga_fg
-//#define bg_flush
+//#define _bg_flush
 
-const double SIGMA = 0.8;
+const float SIGMA = 0.8;
 const int WIN_SIZE = 3;
-const double pi = 3.1415926535;
-const int N = 15;
+const float pi = 3.1415926535;
+const int N = 20;
 const int D_MIN = 2;
 const float R_RATE = 1.5f;
 int norm_R = 20;
 int R = 10;	//
-const double RATE = 1/16;
-const double PROGA_RATE = 1/3;
-const int BLINK_FRAME = 20;
+const float RATE = 1;
+const float PROGA_RATE = 1/3;
+const int BLINK_FRAME = 10;
 
 int swidth, sheight;
 
 static int count = 1;
 static bool first_set = true;
 
+/**需要开数组或者矩阵的变量**/
 BYTE** bg_set;
-float* T;
-BYTE* D;
-BYTE* yuvBackup;
 bool* is_fg;
-//BYTE* RE[MY_SIZE];
+bool* is_fg2;
+/****/
 
-double gauss_win[3][3];
+float gauss_win[3][3];
 
 //二值形态格式刷 
 const bool corrode_flush[3][3] = { {0,1,0}, {1,1,1}, {0,1,0} };
@@ -68,7 +67,7 @@ void set_detection_region(int _x1, int _y1, int _x2, int _y2) {
 //	xx2 = _x2*cell_width, yy2 = _y2*cell_height;
 //	cx1 = _x1, cy1 = _y1;
 //	cx2 = _x2, cy2 = _y2;
-	cout << xx1 << " " << yy1 << " " << xx2 << " " << yy2 << "\n" << cx1 << " " << cy1 << " " << cx2 << " " << cy2 << endl;
+//	cout << xx1 << " " << yy1 << " " << xx2 << " " << yy2 << "\n" << cx1 << " " << cy1 << " " << cx2 << " " << cy2 << endl;
 }
 
 void set_threshold_sensity(int t, int s) {
@@ -76,7 +75,7 @@ void set_threshold_sensity(int t, int s) {
 	sensity = s;
 	cell_dect = -0.07*(float)s+0.8;
 	
-	printf("cell_dect = %f\n", cell_dect);
+//	printf("cell_dect = %f\n", cell_dect);
 }
 
 void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) {
@@ -89,11 +88,8 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 //		printf("swidth = %d sheight = %d\n", swidth, sheight);
 		bg_set = new BYTE* [swidth*sheight];
 		for (int i=0;i<swidth*sheight;++i) bg_set[i] = new BYTE [N];
-//		T = new float [width*height];
-		D = new BYTE [swidth*sheight];
-		memset(D, 255, sizeof(D));
-		yuvBackup = new BYTE [swidth*sheight];
-		memset(D, 0, sizeof(yuvBackup));
+		is_fg = new bool [swidth*sheight]; 
+		is_fg2 = new bool [swidth*sheight]; 
 		//生成高斯离散核函数
 		generateGaussianTemplate(gauss_win, WIN_SIZE, SIGMA);
 		set_background(yuvData);
@@ -111,8 +107,10 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 		R = norm_R;
 		predict(yuvData, resultMatrix, 0);
 	}
+	corrode(yuvData);
 	swell(yuvData);
-	corrode(yuvData); 
+	
+//	filter();
 	
 	check(yuvData, resultMatrix, alarmResult); 
 	
@@ -121,7 +119,7 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarmResult) 
 }
 
 //产生高斯离散核函数 
-void generateGaussianTemplate(double win[][3], int ksize, double sigma) {
+void generateGaussianTemplate(float win[][3], int ksize, float sigma) {
     int center = ksize / 2; // 模板的中心位置，也就是坐标的原点
     double ax2, ay2;
     double sum = 0;
@@ -148,7 +146,7 @@ void generateGaussianTemplate(double win[][3], int ksize, double sigma) {
 }
 
 //将图像数据用高斯离散核函数过滤 
-void gauss_filter(double win[3][3], BYTE* yuvData) {
+void gauss_filter(float win[3][3], BYTE* yuvData) {
 	double weight_sum, y_sum;
 	for (int i=yy1;i<yy2;++i) {
 		for (int j=xx1;j<xx2;++j) {
@@ -168,6 +166,7 @@ void gauss_filter(double win[3][3], BYTE* yuvData) {
 	}
 }
 
+//将检测结果输出到文件 
 void write_yuv(BYTE* yuvData, string name) {
 	FILE* wfile;
 	if ((wfile = fopen(name.c_str(), "ab")) == NULL) { 
@@ -177,40 +176,31 @@ void write_yuv(BYTE* yuvData, string name) {
 	fclose(wfile);
 }
 
+//建立背景模型 
 void set_background(BYTE* yuvData) {
 	int choose, chx, chy;
 	//遍历所有的像素，为每一个像素点设置背景颜色集合 
 	for (int i=yy1;i<yy2;++i) for (int j=xx1;j<xx2;++j) {
-		//设置背景集合（如果是第一次设置，或者图像稳定） 
-		if (first_set || abs(yuvData[conv(i, j)]-yuvBackup[convs(i-yy1, j-xx1)])<D[convs(i-yy1, j-xx1)]+10 ) {
-			if (!first_set) D[convs(i-yy1, j-xx1)] = abs(yuvData[conv(i, j)]-yuvBackup[convs(i-yy1, j-xx1)]);
-			for (int m=0;m<N;++m) {
-				choose = random(8);
-				switch(choose) {
-					case 0: chy = i-1, chx = j-1;break;
-					case 1: chy = i-1, chx = j;break;
-					case 2: chy = i-1, chx = j+1;break;
-					case 3: chy = i, chx = j-1;break;
-					case 4: chy = i, chx = j+1;break;
-					case 5: chy = i+1, chx = j-1;break;
-					case 6: chy = i+1, chx = j;break;
-					case 7: chy = i+1, chx = j+1;break;
-				}
-				if (ch(chy) && cw(chx)) {
-					bg_set[convs(i-yy1, j-xx1)][m] = yuvData[conv(chy, chx)];
-				}
-				else {
-					--m;
-				}
+		for (int m=0;m<N;++m) {
+			choose = random(9);
+			switch(choose) {
+				case 0: chy = i-1, chx = j-1;break;
+				case 1: chy = i-1, chx = j;break;
+				case 2: chy = i-1, chx = j+1;break;
+				case 3: chy = i, chx = j-1;break;
+				case 4: chy = i, chx = j+1;break;
+				case 5: chy = i+1, chx = j-1;break;
+				case 6: chy = i+1, chx = j;break;
+				case 7: chy = i+1, chx = j+1;break;
+				case 8: chy = i, chx = j;break;
 			}
-			
+			if (ch(chy) && cw(chx)) {
+				bg_set[convs(i-yy1, j-xx1)][m] = yuvData[conv(chy, chx)];
+			}
+			else {
+				--m;
+			}
 		}
-		//设置变化率
-//		T[conv(i, j)] = RATE;
-		//设置阈值 
-//		RE[conv(i, j)] = R;
-		
-//		D[conv(i, j)] = 1;
 	}
 	
 //	for (int i=0;i<height*width;++i) {
@@ -221,36 +211,27 @@ void set_background(BYTE* yuvData) {
 
 void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 	int bg_cnt;
-	BYTE min_d;
 	int choose, chx, chy;
-	float min_dd;
 	//遍历每一个单元格 
 	for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
 		
 			//遍历单元格里面的每一个像素 
 			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
 				//记录这一帧的像素，供差分使用 
-				yuvBackup[convs(i-yy1, j-xx1)] = yuvData[conv(i, j)];
-				
+//				yuvBackup[convs(i-yy1, j-xx1)] = yuvData[conv(i, j)];
 				bg_cnt = 0;
-//				min_d = 255;
 				//遍历每一个背景样本集合 
 				for (int m=0;m<N;++m) {
 					//判断背景样本重叠数 
 					if (dist(yuvData[conv(i, j)], bg_set[convs(i-yy1, j-xx1)][m]) < R) if (++bg_cnt > D_MIN) break;
-					//计算背景复杂度 
-		//			if (dist(yuvData[conv(i, j)], bg_set[conv(i, j)][m]) < min_d) min_d = dist(yuvData[conv(i, j)], bg_set[conv(i, j)][m]);
 				}
-				//背景平均复杂程度 
-		//		D[conv(i, j)] += min_d;
-		//		min_dd = (float)D[conv(i, j)]/(float)count;
 				//当背景样本重叠数大于阈值，则为背景
 				if (bg_cnt > D_MIN) {
 					//以一定概率更新背景
-					if (random_1 > RATE) {
+					if (random_1 < RATE) {
 						bg_set[convs(i-yy1, j-xx1)][random(N)] = yuvData[conv(i, j)];
 						//传播更新 
-						if (random_1 > RATE) {
+						if (random_1 < RATE) {
 							choose = random(8);
 							switch(choose) {
 								case 0: chy = i-1, chx = j-1;break;
@@ -268,13 +249,11 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 						}
 						
 					}
-					yuvData[conv(i, j)] = 1;
-		//			T[conv(i, j)] += 1.0 / min_dd / 2.0;
+					is_fg[convs(i-yy1, j-xx1)] = false;
 				}
 				//前景 
 				else {
-					yuvData[conv(i, j)] = 254;
-		//			T[conv(i, j)] -= 1.0 / min_dd;
+					is_fg[convs(i-yy1, j-xx1)] = true;
 					//以一定概率传播前景，填补空白
 #ifdef proga_fg					
 					if (random_1 > PROGA_RATE) {
@@ -288,25 +267,17 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 							case 5: chy = i+1, chx = j-1;break;
 							case 6: chy = i+1, chx = j;break;
 							case 7: chy = i+1, chx = j+1;break;
+							case 8: chy = i, chx = j;break;
 						}
 						if (ch(chy) && cw(chx)) {
-							yuvData[conv(chy, chx)] = 255;
+							is_fg[convs(chy-yy1, chx-xx1)] = true;
 						}
 					}
 #endif
 					
 				}
 				
-		//		//更新阈值，效果不好 
-		//		if (RE[conv(i, j)] > Rs*min_dd) {
-		//			if (RE[conv(i, j)] > 20) RE[conv(i, j)] *= 0.95;
-		//		}
-		//		else {
-		//			if (RE[conv(i, j)] < 240) RE[conv(i, j)] *= 1.05;
-		//		}
-				
-				
-#ifdef bg_flush
+#ifdef _bg_flush
 				//刷新背景 
 				for (int bg=0;bg<bg_flush;++bg) {
 					choose = random(8);
@@ -335,39 +306,62 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 
 //二值形态腐蚀 
 void corrode(BYTE* yuvData) {
-	
 	for (int i=yy1;i<yy2;++i) for (int j=xx1;j<xx2;++j) {
 		
 		for (int k=i-1;k<=i+1;++k) for (int l=j-1;l<=j+1;++l) {
 			if (ch(k) && cw(l)) {
-				if (corrode_flush[k-i+1][l-j+1] && (yuvData[conv(k, l)]==1)) {
-					yuvData[conv(i, j)] = 0;
+				if (corrode_flush[k-i+1][l-j+1] && !is_fg[convs(k-yy1, l-xx1)]) {
+					is_fg2[convs(i-yy1, j-xx1)] = 0;
 					goto out1;
 				}
 			}
 		}
+		is_fg2[convs(i-yy1, j-xx1)] = 1;
 		out1:;
 	}
-	
+	swap(is_fg, is_fg2);
 }
 
 //二值形态膨胀 
 void swell(BYTE* yuvData) {
-	
 	for (int i=yy1;i<yy2;++i) for (int j=xx1;j<xx2;++j) {
 		
 		for (int k=i-1;k<=i+1;++k) for (int l=j-1;l<=j+1;++l) {
 			if (ch(k) && cw(l)) {
-				if (corrode_flush[k-i+1][l-j+1] && (yuvData[conv(k, l)]==254)) {
-					yuvData[conv(i, j)] = 255;
+				if (corrode_flush[k-i+1][l-j+1] && is_fg[convs(k-yy1, l-xx1)]) {
+					is_fg2[convs(i-yy1, j-xx1)] = 1;
 					goto out2;
 				}
 			}
 		}
+		is_fg2[convs(i-yy1, j-xx1)] = 0;
 		out2:;
 	}
-	
+	swap(is_fg, is_fg2);
 }
+
+//邹氏过滤器 
+//void filter() {
+//	int cnt = 0;
+//	for (int i=yy1;i<yy2;++i) for (int j=xx1;j<xx2;++j) {
+//		cnt = 0;
+//		for (int k=i-1;k<=i+1;++k) for (int l=j-1;l<=j+1;++l) {
+//			if (ch(k) && cw(l)) {
+//				if (is_fg[convs(k-yy1, l-xx1)]) {
+//					cnt += 1;
+//					if (cnt>=4) {
+//						is_fg2[convs(i-yy1, j-xx1)] = 1;
+//						goto out2;
+//					}
+//				}
+//				
+//			}
+//		}
+//		is_fg2[convs(i-yy1, j-xx1)] = 0;
+//		out2:;
+//	}
+//	swap(is_fg, is_fg2);
+//}
 
 //检查当前帧是否满足动检条件 
 void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarm) {
@@ -381,18 +375,24 @@ void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarm) {
 		
 		//遍历单元格里面的每一个像素 
 		for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
-			if (yuvData[conv(i, j)] == 255) cell_count += 1;
+			if (is_fg[convs(i-yy1, j-xx1)]) {
+				cell_count += 1;
+				yuvData[conv(i, j)] = 255;
+			}
+			else {
+				yuvData[conv(i, j)] = 0;
+			}
 		}
 		
 //		if (cell_count != 0) printf("cell_count=%d\n", cell_count);
 
-		if (cell_count >= cell_height*cell_width*cell_dect) {
-			block_count += 1;
-			resultMatrix[p-cy1][q-cx1] = 1;
-		}
-		else {
-			resultMatrix[p-cy1][q-cx1] = 0;
-		}
+//		if (cell_count >= cell_height*cell_width*cell_dect) {
+//			block_count += 1;
+//			resultMatrix[p-cy1][q-cx1] = 1;
+//		}
+//		else {
+//			resultMatrix[p-cy1][q-cx1] = 0;
+//		}
 	}
 	
 //	printf("block_cnt=%d<-->%d\n", block_count, (cx2-cx1)*(cy2-cy1));
@@ -401,15 +401,15 @@ void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarm) {
 	if (block_count >= (cx2-cx1)*(cy2-cy1)*threshold/100) {
 		alarm = true;
 		
-		printf("*********alarm at frame %d*********\n", count);
+//		printf("*********alarm at frame %d*********\n", count);
 				//遍历每一个单元格 
-		for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
-		//遍历单元格里面的每一个像素 
-			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
-				if (yuvData[conv(i, j)] == 255) yuvData[conv(i, j)] = 0;
-				else yuvData[conv(i, j)] = 255;
-			}
-		}
+//		for (int p=cy1;p<cy2;++p) for (int q=cx1;q<cx2;++q) {
+//		//遍历单元格里面的每一个像素 
+//			for (int i=p*cell_height;i<(p+1)*cell_height;++i) for (int j=q*cell_width;j<(q+1)*cell_width;++j) {
+//				if (yuvData[conv(i, j)] == 255) yuvData[conv(i, j)] = 0;
+//				else yuvData[conv(i, j)] = 255;
+//			}
+//		}
 
 	}
 	else {

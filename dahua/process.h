@@ -25,9 +25,9 @@ void set_detection_region(int x1, int y1, int x2, int y2);
 
 void set_threshold_sensity(int t, int s);
 
-void gauss_filter(double win[3][3], BYTE* yuvData);
+void gauss_filter(float win[3][3], BYTE* yuvData);
 
-void generateGaussianTemplate(double win[][3], int ksize, double sigma);
+void generateGaussianTemplate(float win[][3], int ksize, float sigma);
 
 void write_yuv(BYTE* yuvData, string name);
 
@@ -40,3 +40,5 @@ void corrode(BYTE* yuvData);
 void swell(BYTE* yuvData);
 
 void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool& alarm); 
+
+//void filter();

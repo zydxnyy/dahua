@@ -7,10 +7,21 @@ extern int height, width;
 
 const char* BASEDIR = "../";
 
-string file_name = "室内人物1_1920x1080";
-string inputPath = BASEDIR + file_name + ".yuv";
-string paramPath = BASEDIR + file_name + ".txt";
-string resultPath = BASEDIR + string("result_") + file_name + ".yuv";
+string names[10] = {
+	"晴+夜+马路1_1920X1080",
+	"晴+昼+马路1_1280x720",
+	"晴+昼+马路3_1280X720",
+	"室内人物1_1920x1080",
+	"雨+夜+马路1_1920x1080",
+	"雨+昼+马路1_1920x1080",
+	"晴+昼+大门_1920X1080",
+	"室内人物3_2688X1520" 
+} ;
+
+string file_name = names[7];
+string inputPath = BASEDIR + string("video/") + file_name + ".yuv";
+string paramPath = BASEDIR + string("param/") + file_name + ".txt";
+string resultPath = BASEDIR + string("result/") + string("result_") + file_name + ".yuv";
 
 int main(int argcnt, char* arg[])
 {
