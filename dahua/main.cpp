@@ -7,7 +7,7 @@ extern int height, width;
 
 const char* BASEDIR = "../";
 
-string names[10] = {
+string names[20] = {
 	"晴+夜+马路1_1920X1080",
 	"晴+昼+马路1_1280x720",
 	"晴+昼+马路3_1280X720",
@@ -15,13 +15,25 @@ string names[10] = {
 	"雨+夜+马路1_1920x1080",
 	"雨+昼+马路1_1920x1080",
 	"晴+昼+大门_1920X1080",
-	"室内人物3_2688X1520" 
-} ;
+	"室内人物3_2688X1520",
+	"地下车库2_1920x1080",
+	"阴+夜+灯光1_2592x1944",
+};
 
-string file_name = names[7];
+string file_name = names[6];
 string inputPath = BASEDIR + string("video/") + file_name + ".yuv";
 string paramPath = BASEDIR + string("param/") + file_name + ".txt";
+
+extern int cx1, cy1, cx2, cy2; 
+
+#ifdef multi_bg_build
+string resultPath = BASEDIR + string("result/") + string("multi_result_") + file_name + ".yuv";
+#endif
+
+
+#ifndef multi_bg_build
 string resultPath = BASEDIR + string("result/") + string("result_") + file_name + ".yuv";
+#endif
 
 int main(int argcnt, char* arg[])
 {
@@ -67,10 +79,10 @@ int main(int argcnt, char* arg[])
 	
 	for (int i=0;i<TotalFrm;++i) {
 		fread(yuvData,sizeof(char), sizeof(BYTE)*frame_size, f1);
-		yuv_process(yuvData, resultMatrix, alarmResult);
-		rrr << "第" << i+1 << "帧检测动检结果为<" << (alarmResult ? "触发动检" : "相安无事") << ">，检测矩阵：" << endl;
-		for (int row=0;row<128;++row) {
-			for (int col=0;col<128;++col) rrr << (int)resultMatrix[row][col] << " ";
+		yuv_process(yuvData, resultMatrix, &alarmResult);
+		rrr << "第<" << i+1 << ">帧检测动检结果为<" << (alarmResult ? "触发动检" : "相安无事") << ">，检测矩阵：" << endl;
+		for (int row=0;row<cy2-cy1;++row) {
+			for (int col=0;col<cx2-cx1;++col) rrr << (int)resultMatrix[row][col] << " ";
 			rrr << endl;
 		}
 	}
