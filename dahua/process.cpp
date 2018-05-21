@@ -6,18 +6,27 @@ const int Q = 2;
 const float SIGMA = 0.8;
 const int WIN_SIZE = 3;
 const float pi = 3.1415926535;
-const int N = 8;
-const int D_MIN = 2;
-const float R_RATE = 1.2f;
-int norm_R = 10;
-int R = 10;	//
-const float RATE = 1.0;
-const int PROGA_RATE = 3;
-const int BLINK_FRAME = 10;
-const float alpha = 0.00001;
-const BYTE FG_CNT_T = 40; 
 
-int swidth, sheight;
+//样本集大小 
+const int N = 8;
+//最小背景匹配样本数 
+const int D_MIN = 2;
+//定义基准背景划分阈值的倍率 
+const float R_RATE = 1.2f;
+//定义基准背景划分阈值 
+int norm_R = 10;
+//定义背景划分阈值 
+int R = 10;
+//定义背景更新率 
+const float RATE = 1.0;
+//定义背景传播更新率 
+const int PROGA_RATE = 3;
+//定义闪烁帧 
+const int BLINK_FRAME = 10;
+//定义多帧建模的背景学习率 
+const float alpha = 0.005;
+//定义鬼影消除的阈值帧数 
+const BYTE FG_CNT_T = 50; 
 
 int count_frame = 1;
 static bool first_set = true;
@@ -38,22 +47,32 @@ float gauss_win[3][3];
 //二值形态格式刷 
 const bool corrode_flush[3][3] = { {0,1,0}, {1,1,1}, {0,1,0} };
 
+//检测区域单元格的坐标 
 int cx1=0, cy1=0, cx2=0, cy2=0;
+//视频的宽与高 
 int width, height;
+//将视频分割为多少行多少列 
 int row, col;
+//检测区域的左上角与右下角坐标（已经经过转换取整） 
 int xx1, yy1, xx2, yy2;
+//灵敏度与阈值 
 int threshold, sensity;
+//单元格尺寸 
 int cell_width, cell_height;
+//检测窗口大小 
+int swidth, sheight;
 
 //float cell_dect;
 
-extern string resultPath;
+//extern string resultPath;
 
+//设置分辨率 
 void set_resolution(int _width,int _height) {
 	width = _width;
 	height = _height;
 }
 
+//设置视频的划分 
 void set_cell_split(int _row, int _col) {
 	row = _row;
 	col = _col;
@@ -61,6 +80,7 @@ void set_cell_split(int _row, int _col) {
 	cell_height = height / row; 
 }
 
+//设置检测的矩形区域 
 void set_detection_region(int _x1, int _y1, int _x2, int _y2) {
 	xx1 = _x1 / cell_width * cell_width;
 	yy1 = _y1 / cell_height * cell_height;
@@ -73,9 +93,10 @@ void set_detection_region(int _x1, int _y1, int _x2, int _y2) {
 //	xx2 = _x2*cell_width, yy2 = _y2*cell_height;
 //	cx1 = _x1, cy1 = _y1;
 //	cx2 = _x2, cy2 = _y2;
-	cout << xx1 << " " << yy1 << " " << xx2 << " " << yy2 << "\n" << cx1 << " " << cy1 << " " << cx2 << " " << cy2 << endl;
+//	cout << xx1 << " " << yy1 << " " << xx2 << " " << yy2 << "\n" << cx1 << " " << cy1 << " " << cx2 << " " << cy2 << endl;
 }
 
+//设置灵敏度与阈值 
 void set_threshold_sensity(int t, int s) {
 	threshold = t;
 	sensity = s;
@@ -84,10 +105,9 @@ void set_threshold_sensity(int t, int s) {
 //	printf("cell_dect = %f\n", cell_dect);
 }
 
+//视频处理主函数 
 void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool* alarmResult) {
-//	for (int i=0;i<width*height;++i) cout << (int)yuvData[i] << " ";
-//	cout << endl;
-//	system("pause");
+//第一帧的时候动态开内存并建立背景模型 
 	if (first_set) {
 		swidth = xx2-xx1;
 		sheight = yy2-yy1;
@@ -119,13 +139,11 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool* alarmResult) 
 		fg_cnt = new BYTE [swidth*sheight];
 #endif	
 	
-		is_fg = new bool [swidth*sheight]; 
-		is_fg2 = new bool [swidth*sheight]; 
+		is_fg = new bool [swidth*sheight];
+		is_fg2 = new bool [swidth*sheight];
 		//生成高斯离散核函数
 		generateGaussianTemplate(gauss_win, WIN_SIZE, SIGMA);
-//#ifndef multi_bg_build
 		set_background(yuvData);
-//#endif
 
 #ifdef multi_bg_build
 		set_background_mul(yuvData);
@@ -133,45 +151,50 @@ void yuv_process(BYTE* yuvData, BYTE resultMatrix[128][128], bool* alarmResult) 
 		first_set = false;
 	}
 	
-	printf("%dth frame\n", count_frame); 
+//	printf("%dth frame\n", count_frame); 
+//用生成的高斯核函数来进行去噪平滑 
 	gauss_filter(gauss_win, yuvData);
 
 #ifndef multi_bg_build
 	//初始帧不稳定，增大判为背景的概率 
 	if (count_frame++ < BLINK_FRAME) {
 		R = R_RATE * norm_R;
-		predict(yuvData, resultMatrix, 0);
+		//进行动检 
+		predict(yuvData);
 	}
 	else {
 		R = norm_R;
-		predict(yuvData, resultMatrix, 0);
+		predict(yuvData);
 	}
 #endif
 
 #ifdef multi_bg_build
 	if (count_frame++ < BLINK_FRAME) {
 		R = R_RATE * norm_R;
-		update_bg(yuvData, resultMatrix, 0);
+		update_bg(yuvData);
 	}
 	else {
 		R = norm_R;
-		predict(yuvData, resultMatrix, 0);
+		predict(yuvData);
 	}
 	//背景建模完成，将建模的背景集填充 
 	if (count_frame == BLINK_FRAME) {
 		fill_in();
 	}
 #endif
-	
+
+//二值形态操作，这里是开操作 
 	corrode(yuvData);
 	swell(yuvData);
 	
 //	filter();
-	
+
+//将结果写入 
 	check(yuvData, resultMatrix, alarmResult); 
 	
+//将检测视频输出	
 #ifdef output_yuv
-	write_yuv(yuvData, resultPath);	
+	write_yuv(yuvData);	
 #endif
 	
 }
@@ -294,7 +317,7 @@ void set_background_mul(BYTE* yuvData) {
 	}
 }
 
-void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
+void predict(BYTE* yuvData) {
 	int bg_cnt;
 	int choose, chx, chy;
 	//遍历每一个单元格 
@@ -315,7 +338,7 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 					//以一定概率更新背景
 					if (random_1 < RATE) {
 						bg_set[convs(i-yy1, j-xx1)][random(N)] = yuvData[conv(i, j)];
-						//传播更新 
+						//传播更新，这里重复PROGA_RATE次，加快鬼影消除速率 
 						for (int z=0;z<PROGA_RATE;++z) if (random_1 < RATE) {
 							choose = random(8);
 							switch(choose) {
@@ -375,51 +398,7 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 						}
 					}
 #endif					
-					
-#ifdef proga_fg					
-					//以一定概率传播前景，填补空白
-					if (random_1 > PROGA_RATE) {
-						choose = random(8);
-						switch(choose) {
-							case 0: chy = i-1, chx = j-1;break;
-							case 1: chy = i-1, chx = j;break;
-							case 2: chy = i-1, chx = j+1;break;
-							case 3: chy = i, chx = j-1;break;
-							case 4: chy = i, chx = j+1;break;
-							case 5: chy = i+1, chx = j-1;break;
-							case 6: chy = i+1, chx = j;break;
-							case 7: chy = i+1, chx = j+1;break;
-							case 8: chy = i, chx = j;break;
-						}
-						if (ch(chy) && cw(chx)) {
-							is_fg[convs(chy-yy1, chx-xx1)] = true;
-						}
-					}
-#endif
-					
 				}
-				
-				
-#ifdef _bg_flush
-				//刷新背景 
-				for (int bg=0;bg<bg_flush;++bg) {
-					choose = random(8);
-					switch(choose) {
-						case 0: chy = i-1, chx = j-1;break;
-						case 1: chy = i-1, chx = j;break;
-						case 2: chy = i-1, chx = j+1;break;
-						case 3: chy = i, chx = j-1;break;
-						case 4: chy = i, chx = j+1;break;
-						case 5: chy = i+1, chx = j-1;break;
-						case 6: chy = i+1, chx = j;break;
-						case 7: chy = i+1, chx = j+1;break;
-					}
-					if (ch(chy) && cw(chx)) {
-						bg_set[convs(chy-yy1, chx-xx1)][random(N)] = yuvData[conv(chy, chx)];
-					}
-				}
-#endif
-				
 					
 			}
 			
@@ -427,7 +406,7 @@ void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
 	
 }
 
-void update_bg(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush) {
+void update_bg(BYTE* yuvData) {
 	int bg_cnt;
 	int choose, chx, chy;
 	int min_set;
@@ -688,13 +667,11 @@ void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool* alarm) {
 		}
 	}
 	
-	printf("block_cnt=%d<-->%d\n", block_count, (cx2-cx1)*(cy2-cy1));
-	
 	//如果大于阈值，检测当前帧为动检帧 
 	if (block_count > (cx2-cx1)*(cy2-cy1)*threshold/100) {
 		*alarm = true;
 		
-		printf("*********alarm at frame %d*********\n", count_frame);
+//		printf("*********alarm at frame %d*********\n", count_frame);
 				//遍历每一个单元格 
 
 #ifdef reverse_bg

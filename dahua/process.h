@@ -17,16 +17,12 @@ typedef unsigned char BYTE;
 #define random(n) (rand() % n)
 #define random_1 ((double)rand() / (double)RAND_MAX)
 
-
-//#define proga_fg
-//#define _bg_flush
-
 //定义动检成立时是否将颜色反转 
-#define reverse_bg
+//#define reverse_bg
 //多帧背景建模
 //#define multi_bg_build
 //定义是否将结果视频输出，输出路径为当前目录的result.yuv
-#define output_yuv
+//#define output_yuv
 //是否将满足动检的单元格上色，满足的单元格将会变成灰色 
 //#define paint_cell
 //是否进行鬼影消除 
@@ -46,11 +42,11 @@ void gauss_filter(float win[3][3], BYTE* yuvData);
 
 void generateGaussianTemplate(float win[][3], int ksize, float sigma);
 
-void write_yuv(BYTE* yuvData, string name);
+void write_yuv(BYTE* yuvData, string name="result.yuv");
 
 void set_background(BYTE* yuvData);
 
-void predict(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush);
+void predict(BYTE* yuvData);
 
 void corrode(BYTE* yuvData);
 
@@ -60,7 +56,7 @@ void check(BYTE* yuvData, BYTE resultMatrix[128][128], bool* alarm);
 
 void filter();
 
-void update_bg(BYTE* yuvData, BYTE resultMatrix[128][128], int bg_flush);
+void update_bg(BYTE* yuvData);
 
 void set_background_mul(BYTE* yuvData); 
 

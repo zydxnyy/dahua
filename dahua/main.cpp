@@ -20,20 +20,24 @@ string names[20] = {
 	"阴+夜+灯光1_2592x1944",
 };
 
-string file_name = names[6];
+string file_name = names[2];
 string inputPath = BASEDIR + string("video/") + file_name + ".yuv";
 string paramPath = BASEDIR + string("param/") + file_name + ".txt";
 
+//修改file_name来选择对应的处理视频 
+//string file_name = names[0];
+//string inputPath = BASEDIR + file_name + ".yuv";
+//string paramPath = BASEDIR + file_name + ".txt";
+
 extern int cx1, cy1, cx2, cy2; 
 
-#ifdef multi_bg_build
-string resultPath = BASEDIR + string("result/") + string("multi_result_") + file_name + ".yuv";
-#endif
-
-
-#ifndef multi_bg_build
-string resultPath = BASEDIR + string("result/") + string("result_") + file_name + ".yuv";
-#endif
+//#ifdef multi_bg_build
+//string resultPath = BASEDIR + string("result/") + string("multi_result_") + file_name + ".yuv";
+//#endif
+//
+//#ifndef multi_bg_build
+//string resultPath = BASEDIR + string("result/") + string("result_") + file_name + ".yuv";
+//#endif
 
 int main(int argcnt, char* arg[])
 {
@@ -69,11 +73,11 @@ int main(int argcnt, char* arg[])
 	
 	FILE *f1;
 	ofstream rrr("result.txt");
-	remove(resultPath.c_str());
+	remove("result.yuv");
 	//打开要读取的文件
 	if ((f1 = fopen(inputPath.c_str(), "rb")) == NULL)
 	{
-		printf("Can't open file %s!\n", resultPath.c_str());
+		printf("Can't open file %s!\n", inputPath.c_str());
 		exit(-1);
 	}
 	
