@@ -52,11 +52,11 @@ int main(int argcnt, char* arg[])
 	if (!ins) {
 //		printf("Please add the param file!\n");
 //		exit(-1);
-		printf("请依次输入：width height x1 y1 x2 y2 row col sensity threshold\n");
+		printf("请依次输入：width height x1 y1 x2 y2 row col threshold sensity\n");
 		scanf("%d%d%d%d%d%d%d%d%d%d", &w, &h, &px1, &py1, &px2, &py2, &r, &c, &s, &t); 
 	} 
 	else {
-		ins >> w >> h >> px1 >> py1 >> px2 >> py2 >> r >> c >> t >> s;
+		ins >> w >> h >> px1 >> py1 >> px2 >> py2 >> r >> c >> s >> t;
 	}
 	
 	ins.close();

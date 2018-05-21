@@ -1,5 +1,5 @@
 关于函数接口的说明->
-	直接将process.h头文件包含进来，里面已经包含关键接口函数的定义与实现。但是有一个set_threshold_sensity函数给出的说明不是很明确，这里我们默认第一个参数为threshold，第二个为sensity。
+	直接将process.h头文件包含进来，里面已经包含关键接口函数的定义与实现。但是有一个set_threshold_sensity函数给出的说明不是很明确，这里我们默认第一个参数为sensity, 第二个为threshold。
 
 
 宏定义选择->
