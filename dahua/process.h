@@ -22,9 +22,9 @@ typedef unsigned char BYTE;
 //多帧背景建模
 //#define multi_bg_build
 //定义是否将结果视频输出，输出路径为当前目录的result.yuv
-//#define output_yuv
+#define output_yuv
 //是否将满足动检的单元格上色，满足的单元格将会变成灰色 
-//#define paint_cell
+#define paint_cell
 //是否进行鬼影消除 
 //#define ghost_clear 
 

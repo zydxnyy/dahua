@@ -20,24 +20,19 @@ string names[20] = {
 	"阴+夜+灯光1_2592x1944",
 };
 
-string file_name = names[2];
+string file_name = names[0];
 string inputPath = BASEDIR + string("video/") + file_name + ".yuv";
 string paramPath = BASEDIR + string("param/") + file_name + ".txt";
 
-//修改file_name来选择对应的处理视频 
-//string file_name = names[0];
-//string inputPath = BASEDIR + file_name + ".yuv";
-//string paramPath = BASEDIR + file_name + ".txt";
-
 extern int cx1, cy1, cx2, cy2; 
 
-//#ifdef multi_bg_build
-//string resultPath = BASEDIR + string("result/") + string("multi_result_") + file_name + ".yuv";
-//#endif
-//
-//#ifndef multi_bg_build
-//string resultPath = BASEDIR + string("result/") + string("result_") + file_name + ".yuv";
-//#endif
+#ifdef multi_bg_build
+string resultPath = BASEDIR + string("result/") + string("multi_result_") + file_name + ".yuv";
+#endif
+
+#ifndef multi_bg_build
+string resultPath = BASEDIR + string("result/") + string("result_") + file_name + ".yuv";
+#endif
 
 int main(int argcnt, char* arg[])
 {
@@ -53,10 +48,10 @@ int main(int argcnt, char* arg[])
 //		printf("Please add the param file!\n");
 //		exit(-1);
 		printf("请依次输入：width height x1 y1 x2 y2 row col threshold sensity\n");
-		scanf("%d%d%d%d%d%d%d%d%d%d", &w, &h, &px1, &py1, &px2, &py2, &r, &c, &s, &t); 
+		scanf("%d%d%d%d%d%d%d%d%d%d", &w, &h, &px1, &py1, &px2, &py2, &r, &c, &t, &s); 
 	} 
 	else {
-		ins >> w >> h >> px1 >> py1 >> px2 >> py2 >> r >> c >> s >> t;
+		ins >> w >> h >> px1 >> py1 >> px2 >> py2 >> r >> c >> t >> s;
 	}
 	
 	ins.close();

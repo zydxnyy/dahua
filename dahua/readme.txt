@@ -1,5 +1,5 @@
 关于函数接口的说明->
-	直接将process.h头文件包含进来，里面已经包含关键接口函数的定义与实现。但是有一个set_threshold_sensity函数给出的说明不是很明确，这里我们默认第一个参数为sensity, 第二个为threshold。
+	直接将process.h头文件包含进来，里面已经包含关键接口函数的定义与实现。直接调用相应的的函数即可。
 
 
 宏定义选择->
@@ -7,7 +7,7 @@
 	（1）#define reverse_bg：定义在发生动检的时候是否将视频颜色反转
 	（2）#define multi_bg_build：定义是否采用多帧建模（耗内存）
 	（3）#define output_yuv：定义是否将动检视频输出，输出路径默认为当前文件夹下的result.yuv。前景默认为白色，背景默认为黑色
-	（4）#define paint_cell：定义是否将满足动检的单元格上色，满足的单元格将会变成灰色（耗时）
+	（4）#define paint_cell：定义是否将满足动检的单元格上色，满足的单元格将会变成灰色
 	（5）#define ghost_clear：定义是否进行鬼影消除。（可能误判）
 
 

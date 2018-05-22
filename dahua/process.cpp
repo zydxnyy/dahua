@@ -29,7 +29,7 @@ const float alpha = 0.005;
 const BYTE FG_CNT_T = 50; 
 
 int count_frame = 1;
-static bool first_set = true;
+bool first_set = true;
 
 /**需要开数组或者矩阵的变量**/
 BYTE** bg_set;
@@ -99,10 +99,10 @@ void set_detection_region(int _x1, int _y1, int _x2, int _y2) {
 //设置灵敏度与阈值 
 void set_threshold_sensity(int t, int s) {
 //	printf("sen = %d, thres = %d\n", t, s);
-	threshold = s;
-	sensity = t;
+	threshold = t;
+	sensity = s;
 //	cell_dect = -0.07*(float)s+0.8;
-	norm_R = -2*t+31;
+	norm_R = -2*s+31;
 //	printf("cell_dect = %f\n", cell_dect);
 }
 
